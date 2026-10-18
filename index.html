@@ -71,7 +71,9 @@
   .radios label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:9px 16px;border-radius:8px;cursor:pointer;background:var(--surface-2)}
   .radios label:has(input:checked){border-color:var(--gold);color:var(--gold-strong);font-weight:600}
   .total{font-family:var(--display);font-size:24px;color:var(--gold-strong);font-variant-numeric:tabular-nums}
-  .hint{font-size:12px;color:var(--muted)}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .photo-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .photo-btns label.btn{display:inline-flex;align-items:center;gap:6px}
 
   .btn{background:var(--gold);color:var(--gold-ink);border:0;padding:11px 18px;border-radius:8px;font-weight:600;cursor:pointer}
   .btn:hover{background:var(--gold-strong)}
@@ -151,9 +153,15 @@
       <div class="photo-row">
         <div class="photo-prev" id="photoPrev">Sin foto</div>
         <div>
-          <label class="f" for="photo">Foto (cliente o prenda)</label>
-          <input type="file" id="photo" accept="image/*" capture="environment">
-          <div class="hint">En el celular puedes tomarla con la cámara.</div>
+          <span class="f">Foto (cliente o prenda)</span>
+          <div class="photo-btns">
+            <label class="btn ghost sm" for="photoCam">📷 Tomar foto</label>
+            <label class="btn ghost sm" for="photo">🖼️ Elegir de galería</label>
+            <button type="button" class="btn ghost sm" id="photoClear" hidden>Quitar</button>
+          </div>
+          <input type="file" id="photoCam" accept="image/*" capture="environment" hidden>
+          <input type="file" id="photo" accept="image/*" hidden>
+          <div class="hint" id="photoName">Sin foto seleccionada.</div>
         </div>
       </div>
       <div class="grid">
@@ -310,17 +318,24 @@ function resize(file, max=1200, q=.82){
     img.src = URL.createObjectURL(file);
   });
 }
-$('photo').addEventListener('change', async e => {
+async function onPhoto(e){
   const f = e.target.files[0];
-  photoBlob = null; setPrev('');
+  e.target.value = '';
   if(!f) return;
   try{
     photoBlob = await resize(f);
     if(previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = URL.createObjectURL(photoBlob); setPrev(previewUrl);
   }catch{ toast('No se pudo leer la imagen. Prueba con otra foto.'); }
-});
-function setPrev(src){ const p=$('photoPrev'); p.style.backgroundImage = src ? `url("${src}")` : ''; p.textContent = src ? '' : 'Sin foto'; }
+}
+$('photo').addEventListener('change', onPhoto);
+$('photoCam').addEventListener('change', onPhoto);
+$('photoClear').onclick = () => { photoBlob = null; setPrev(''); };
+function setPrev(src){
+  const p=$('photoPrev'); p.style.backgroundImage = src ? `url("${src}")` : ''; p.textContent = src ? '' : 'Sin foto';
+  $('photoClear').hidden = !src;
+  $('photoName').textContent = src ? 'Foto lista para guardar.' : 'Sin foto seleccionada.';
+}
 async function uploadPhoto(blob){
   if(!blob) return null;
   const path = `${new Date().toISOString().slice(0,7)}/${crypto.randomUUID()}.jpg`;
