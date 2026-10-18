@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Registro de Clientes Joyería</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  // ================== CONFIGURACIÓN (rellena estos 3 datos) ==================
+  // Supabase → Project Settings → API (o "Data API")
+  const SUPABASE_URL      = 'PEGA_AQUI_TU_PROJECT_URL';      // ej: https://abcdxyz.supabase.co
+  const SUPABASE_ANON_KEY = 'PEGA_AQUI_TU_ANON_PUBLIC_KEY';  // la clave "anon public" o "publishable"
+  // Correo del usuario que creaste en Supabase → Authentication → Users
+  const USUARIO_EMAIL     = 'PEGA_AQUI_EL_CORREO_DEL_USUARIO';
+  // ===========================================================================
+</script>
+<style>
+  :root{
+    --bg:#f3f2f5; --surface:#ffffff; --surface-2:#f8f7fa; --ink:#221d27; --muted:#6e6775; --line:#e3e0e8;
+    --tray:#211b26; --tray-ink:#efe6d2; --tray-line:#4a4052; --tray-input:#2c2532;
+    --gold:#b38a35; --gold-strong:#8c6a22; --gold-ink:#1d170c;
+    --danger:#b23a2b; --danger-ink:#ffffff; --used-bg:#f6e3dd; --used-ink:#8a3424; --chip:#efe8d6; --chip-ink:#5e4a1c;
+    --ok:#5fbf7a; --off:#8a8390;
+    --display:"Marcellus", "Iowan Old Style", Georgia, serif;
+    --body:"Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#16131a; --surface:#1f1b24; --surface-2:#26212c; --ink:#ece8f0; --muted:#a59eac; --line:#3a3342;
+    --tray:#0f0d12; --tray-line:#3a3342; --tray-input:#1f1b24;
+    --gold:#d0a752; --gold-strong:#e2bd6c;
+    --danger:#e0604e; --used-bg:#3e2620; --used-ink:#f0b3a5; --chip:#3a3222; --chip-ink:#ecd59f;
+    color-scheme:dark } }
+
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--tray)}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;min-height:100vh}
+  img{max-width:100%}
+  button,input,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .wrap{max-width:980px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+
+  header{background:var(--tray);color:var(--tray-ink)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:14px}
+  .brand{font-family:var(--display);font-size:22px;letter-spacing:.04em;margin:0}
+  .brand b{color:var(--gold);font-weight:400}
+  .nav{display:flex;gap:6px;flex-wrap:wrap}
+  .nav button{background:transparent;border:1px solid var(--tray-line);color:var(--tray-ink);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:14px}
+  .nav button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);font-weight:600}
+  .sync{font-size:12px;color:var(--tray-ink);opacity:.75;display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--off)}
+  .dot.on{background:var(--ok)}
+
+  main{padding-block:20px 64px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+  h2{font-family:var(--display);font-weight:400;font-size:19px;margin:0 0 14px;color:var(--gold-strong);letter-spacing:.03em}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+  .full{grid-column:1/-1}
+  .f{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+  input[type=text],input[type=number],input[type=password],textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+  input:focus,textarea:focus{outline:2px solid var(--gold);border-color:transparent}
+  textarea{min-height:72px;resize:vertical}
+  .sep{margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
+  .photo-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .photo-prev{width:120px;height:120px;max-width:100%;border-radius:10px;border:1px dashed var(--line);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+  .radios{display:flex;gap:10px;flex-wrap:wrap}
+  .radios label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:9px 16px;border-radius:8px;cursor:pointer;background:var(--surface-2)}
+  .radios label:has(input:checked){border-color:var(--gold);color:var(--gold-strong);font-weight:600}
+  .total{font-family:var(--display);font-size:24px;color:var(--gold-strong);font-variant-numeric:tabular-nums}
+  .hint{font-size:12px;color:var(--muted)}
+
+  .btn{background:var(--gold);color:var(--gold-ink);border:0;padding:11px 18px;border-radius:8px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--gold-strong)}
+  .btn:disabled{opacity:.55;cursor:wait}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:500}
+  .btn.ghost:hover{border-color:var(--gold)}
+  .btn.danger{background:var(--danger);color:var(--danger-ink)}
+  .btn.sm{padding:8px 12px;font-size:13px}
+  .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+
+  .tools{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .tools input{flex:1 1 240px;min-width:0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+  .stats{color:var(--muted);font-size:13px;margin-bottom:10px;font-variant-numeric:tabular-nums}
+  .list{display:grid;gap:8px}
+  .rec{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;align-items:center;text-align:left;width:100%}
+  .rec:hover{border-color:var(--gold)}
+  .th{width:62px;height:62px;border-radius:8px;background:var(--chip) center/cover no-repeat;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--chip-ink);font-size:20px}
+  .info{flex:1;min-width:0}
+  .name{font-weight:600;display:block}
+  .meta{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+  .chip{display:inline-block;background:var(--chip);color:var(--chip-ink);padding:1px 8px;border-radius:999px;font-size:12px;margin-left:6px;font-weight:500}
+  .chip.used{background:var(--used-bg);color:var(--used-ink)}
+  .amt{font-weight:700;color:var(--gold-strong);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;color:var(--muted);padding:44px 12px;border:1px dashed var(--line);border-radius:12px}
+
+  .overlay{position:fixed;inset:0;background:rgba(15,12,18,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+  .modal{background:var(--surface);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px}
+  .modal img{width:100%;max-height:340px;object-fit:contain;border-radius:8px;background:var(--surface-2)}
+  .kv{display:grid;grid-template-columns:140px minmax(0,1fr);gap:7px 12px;margin:12px 0 0;font-size:14px}
+  .kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+  .err{color:var(--danger);font-size:13px;margin-top:6px;min-height:18px}
+
+  #lock{position:fixed;inset:0;z-index:30;background:var(--tray);display:flex;align-items:center;justify-content:center;padding:24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px))}
+  .lockbox{width:100%;max-width:360px;text-align:center;color:var(--tray-ink)}
+  .gem{font-size:34px;color:var(--gold);line-height:1}
+  .lockbox h1{font-family:var(--display);font-weight:400;font-size:26px;margin:10px 0 4px;letter-spacing:.04em}
+  .lockbox p{margin:0 0 18px;opacity:.75;font-size:14px}
+  .lockbox input{background:var(--tray-input);border-color:var(--tray-line);color:var(--tray-ink);text-align:center;margin-bottom:10px}
+  .lockbox .btn{width:100%}
+  .lockbox .err{color:#f0a090}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom, 0px));background:var(--tray);color:var(--tray-ink);padding:10px 18px;border-radius:8px;z-index:40;max-width:calc(100% - 32px)}
+  @media (max-width:600px){.grid{grid-template-columns:1fr}.kv{grid-template-columns:110px minmax(0,1fr)}}
+  @media (prefers-reduced-motion:no-preference){.rec,.btn{transition:border-color .15s,background .15s}}
+</style>
+</head>
+<body>
+
+<!-- ACCESO -->
+<div id="lock">
+  <form class="lockbox" id="lockForm" autocomplete="off">
+    <div class="gem">◆</div>
+    <h1>Registro Joyería</h1>
+    <p>Introduce la clave para entrar.</p>
+    <input type="password" id="lockPass" aria-label="Clave de acceso" autocomplete="current-password">
+    <button class="btn" type="submit" id="lockBtn">Entrar</button>
+    <div class="err" id="lockErr"></div>
+  </form>
+</div>
+
+<header>
+  <div class="wrap">
+    <p class="brand">◆ Registro <b>Joyería</b></p>
+    <div class="nav">
+      <button id="tabNew" aria-pressed="true">Nuevo registro</button>
+      <button id="tabList" aria-pressed="false">Registros</button>
+      <button id="btnLock" aria-pressed="false">Bloquear</button>
+    </div>
+    <div class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">Conectando…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="viewNew">
+    <form id="form" class="panel" autocomplete="off">
+      <h2>Datos del cliente</h2>
+      <div class="photo-row">
+        <div class="photo-prev" id="photoPrev">Sin foto</div>
+        <div>
+          <label class="f" for="photo">Foto (cliente o prenda)</label>
+          <input type="file" id="photo" accept="image/*" capture="environment">
+          <div class="hint">En el celular puedes tomarla con la cámara.</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div><label class="f" for="nombres">Nombres *</label><input type="text" id="nombres" required></div>
+        <div><label class="f" for="apellidos">Apellidos *</label><input type="text" id="apellidos" required></div>
+        <div><label class="f" for="cedula">Número de cédula *</label><input type="text" id="cedula" inputmode="numeric" required></div>
+        <div><label class="f" for="direccion">Dirección corta</label><input type="text" id="direccion"></div>
+      </div>
+
+      <div class="sep">
+        <h2>Datos de la prenda</h2>
+        <div class="grid">
+          <div class="full"><label class="f" for="descripcion">Descripción de la prenda *</label><textarea id="descripcion" required placeholder="Ej: Cadena tejido cubano, oro 18k"></textarea></div>
+          <div><label class="f" for="peso">Peso (gr) *</label><input type="number" id="peso" step="0.01" min="0" required></div>
+          <div><label class="f" for="precioGr">Precio por gr pagado *</label><input type="number" id="precioGr" step="0.01" min="0" required></div>
+          <div class="full"><span class="f">Total pagado</span><div class="total" id="total">0,00</div></div>
+          <div class="full">
+            <span class="f">Estado de la prenda *</span>
+            <div class="radios">
+              <label><input type="radio" name="estado" id="estNueva" value="Nueva" checked> Nueva</label>
+              <label><input type="radio" name="estado" id="estUsada" value="Usada"> Usada</label>
+            </div>
+          </div>
+          <div class="full" id="notaBox" hidden><label class="f" for="nota">Nota (prenda usada)</label><textarea id="nota" placeholder="Estado, detalles, procedencia…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn ghost">Limpiar</button>
+        <button type="submit" class="btn" id="btnSave">Guardar registro</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="viewList" hidden>
+    <div class="tools">
+      <input type="text" id="q" placeholder="Buscar por nombre, apellido o cédula…" aria-label="Buscar">
+      <button class="btn ghost sm" id="btnExport">Exportar respaldo</button>
+      <button class="btn ghost sm" id="btnImport">Importar respaldo</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="list" id="list"><div class="empty">Cargando registros…</div></div>
+  </section>
+</main>
+
+<div class="overlay" id="detailBg" hidden><div class="modal" id="detail"></div></div>
+
+<div class="overlay" id="codeBg" hidden>
+  <div class="modal" style="max-width:360px">
+    <h2>Confirmar eliminación</h2>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:14px">Ingresa el código secreto para borrar este registro. No se puede deshacer.</p>
+    <input type="password" id="codeInput" inputmode="numeric" aria-label="Código secreto" autocomplete="off">
+    <div class="err" id="codeErr"></div>
+    <div class="actions">
+      <button class="btn ghost" id="codeCancel">Cancelar</button>
+      <button class="btn danger" id="codeOk">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const BUCKET = 'fotos';
+const $ = id => document.getElementById(id);
+const money = n => Number(n||0).toLocaleString('es', {minimumFractionDigits:2, maximumFractionDigits:2});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const fmtDate = iso => new Date(iso).toLocaleString('es', {dateStyle:'medium', timeStyle:'short'});
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true,3000); }
+function setSync(on, txt){ $('syncDot').classList.toggle('on', on); $('syncTxt').textContent = txt; }
+
+// ---------- Conexión ----------
+const configured = !SUPABASE_URL.startsWith('PEGA_') && !SUPABASE_ANON_KEY.startsWith('PEGA_') && !USUARIO_EMAIL.startsWith('PEGA_');
+let sb = null;
+if(!configured){
+  $('lockErr').textContent = 'Falta configurar Supabase en index.html (ver LEEME).';
+  $('lockBtn').disabled = true;
+} else {
+  // La sesión dura mientras el navegador esté abierto; al cerrarlo pide la clave otra vez
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true }
+  });
+  sb.auth.getSession().then(({data}) => { if(data.session) unlock(); });
+}
+
+// ---------- Acceso con clave ----------
+$('lockForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if(!sb) return;
+  $('lockBtn').disabled = true; $('lockErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: USUARIO_EMAIL, password: $('lockPass').value });
+  $('lockBtn').disabled = false;
+  if(error){
+    $('lockErr').textContent = /invalid/i.test(error.message) ? 'Clave incorrecta.' : 'No se pudo entrar: ' + error.message;
+    $('lockPass').select(); return;
+  }
+  unlock();
+});
+let started = false;
+function unlock(){
+  $('lock').hidden = true; $('lockPass').value = '';
+  if(!started){ started = true; start(); }
+}
+$('btnLock').onclick = async () => { if(sb) await sb.auth.signOut(); location.reload(); };
+
+// ---------- Datos ----------
+let all = [], urls = {};
+async function start(){
+  await loadAll();
+  sb.channel('registros-cambios')
+    .on('postgres_changes', {event:'*', schema:'public', table:'registros'}, scheduleReload)
+    .subscribe(status => {
+      if(status === 'SUBSCRIBED') setSync(true, 'En línea · sincronizado');
+      else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setSync(false, 'Sin tiempo real · recarga para ver cambios');
+    });
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) scheduleReload(); });
+}
+let reloadTimer;
+function scheduleReload(){ clearTimeout(reloadTimer); reloadTimer = setTimeout(loadAll, 400); }
+
+async function loadAll(){
+  const rows = [];
+  for(let from = 0; ; from += 1000){
+    const { data, error } = await sb.from('registros').select('*').order('fecha', {ascending:false}).range(from, from + 999);
+    if(error){ setSync(false, 'Error al cargar'); toast('No se pudieron cargar los registros: ' + error.message); return; }
+    rows.push(...data);
+    if(data.length < 1000) break;
+  }
+  all = rows;
+  const missing = all.map(r => r.foto_path).filter(p => p && !urls[p]);
+  if(missing.length){
+    const { data } = await sb.storage.from(BUCKET).createSignedUrls(missing, 60*60*12);
+    (data || []).forEach(d => { if(d.signedUrl) urls[d.path] = d.signedUrl; });
+  }
+  render();
+}
+
+// ---------- Foto ----------
+let photoBlob = null, previewUrl = '';
+function resize(file, max=1200, q=.82){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(b => b ? res(b) : rej(), 'image/jpeg', q);
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+$('photo').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  photoBlob = null; setPrev('');
+  if(!f) return;
+  try{
+    photoBlob = await resize(f);
+    if(previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(photoBlob); setPrev(previewUrl);
+  }catch{ toast('No se pudo leer la imagen. Prueba con otra foto.'); }
+});
+function setPrev(src){ const p=$('photoPrev'); p.style.backgroundImage = src ? `url("${src}")` : ''; p.textContent = src ? '' : 'Sin foto'; }
+async function uploadPhoto(blob){
+  if(!blob) return null;
+  const path = `${new Date().toISOString().slice(0,7)}/${crypto.randomUUID()}.jpg`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType:'image/jpeg' });
+  if(error) throw new Error('No se pudo subir la foto: ' + error.message);
+  return path;
+}
+
+// ---------- Formulario ----------
+const estado = () => document.querySelector('input[name=estado]:checked').value;
+function calcTotal(){ $('total').textContent = money((parseFloat($('peso').value)||0) * (parseFloat($('precioGr').value)||0)); }
+$('peso').addEventListener('input', calcTotal);
+$('precioGr').addEventListener('input', calcTotal);
+document.querySelectorAll('input[name=estado]').forEach(r => r.addEventListener('change', () => { $('notaBox').hidden = estado() !== 'Usada'; }));
+$('form').addEventListener('reset', () => setTimeout(() => { photoBlob=null; setPrev(''); calcTotal(); $('notaBox').hidden = true; }));
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btnSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+  try{
+    const foto_path = await uploadPhoto(photoBlob);
+    const { error } = await sb.from('registros').insert({
+      foto_path,
+      nombres: $('nombres').value.trim(),
+      apellidos: $('apellidos').value.trim(),
+      cedula: $('cedula').value.trim(),
+      direccion: $('direccion').value.trim(),
+      descripcion: $('descripcion').value.trim(),
+      peso: parseFloat($('peso').value)||0,
+      precio_gr: parseFloat($('precioGr').value)||0,
+      estado: estado(),
+      nota: estado()==='Usada' ? $('nota').value.trim() : ''
+    });
+    if(error) throw new Error(error.message);
+    $('form').reset();
+    toast('Registro guardado');
+    scheduleReload();
+  }catch(err){ toast('No se pudo guardar. ' + (err.message || 'Revisa la conexión.')); }
+  finally{ btn.disabled = false; btn.textContent = 'Guardar registro'; }
+});
+
+// ---------- Lista y búsqueda ----------
+function render(){
+  const q = norm($('q').value.trim());
+  const qDigits = q.replace(/[^0-9]/g,'');
+  const items = !q ? all : all.filter(r =>
+    norm(`${r.nombres} ${r.apellidos}`).includes(q) ||
+    (qDigits && String(r.cedula).replace(/[^0-9]/g,'').includes(qDigits)) ||
+    norm(r.cedula).includes(q));
+  const clientes = new Set(items.map(r => r.cedula)).size;
+  $('stats').textContent = `${items.length} registro(s) · ${clientes} cliente(s)` + (q ? ` · de ${all.length} en total` : '');
+  $('list').innerHTML = items.length ? items.map(r => {
+    const src = urls[r.foto_path] || '';
+    return `<button class="rec" data-id="${esc(r.id)}">
+      <span class="th" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : esc((r.nombres||'?')[0])}</span>
+      <span class="info">
+        <span class="name">${esc(r.nombres)} ${esc(r.apellidos)}<span class="chip ${r.estado==='Usada'?'used':''}">${esc(r.estado)}</span></span>
+        <span class="meta">C.I. ${esc(r.cedula)} · ${esc(r.descripcion)}</span>
+        <span class="meta">${fmtDate(r.fecha)} · ${money(r.peso)} gr × ${money(r.precio_gr)}</span>
+      </span>
+      <span class="amt">${money(r.total)}</span>
+    </button>`;
+  }).join('') : `<div class="empty">${all.length ? 'Sin resultados para esta búsqueda.' : 'Aún no hay registros. Usa “Nuevo registro” para agregar el primero.'}</div>`;
+}
+$('q').addEventListener('input', render);
+$('list').addEventListener('click', e => { const el = e.target.closest('.rec'); if(el) showDetail(el.dataset.id); });
+
+// ---------- Detalle ----------
+function showDetail(id){
+  const r = all.find(x => x.id === id); if(!r) return;
+  const otros = all.filter(x => x.cedula === r.cedula).length;
+  const src = urls[r.foto_path] || '';
+  $('detail').innerHTML = `
+    ${src ? `<img src="${esc(src)}" alt="Foto del registro">` : ''}
+    <h2 style="margin-top:14px">${esc(r.nombres)} ${esc(r.apellidos)}</h2>
+    <dl class="kv">
+      <dt>Cédula</dt><dd>${esc(r.cedula)} ${otros>1 ? `<span class="chip">${otros} registros</span>` : ''}</dd>
+      <dt>Dirección</dt><dd>${esc(r.direccion) || '—'}</dd>
+      <dt>Fecha</dt><dd>${fmtDate(r.fecha)}</dd>
+      <dt>Prenda</dt><dd>${esc(r.descripcion)}</dd>
+      <dt>Peso</dt><dd>${money(r.peso)} gr</dd>
+      <dt>Precio por gr</dt><dd>${money(r.precio_gr)}</dd>
+      <dt>Total pagado</dt><dd class="total">${money(r.total)}</dd>
+      <dt>Estado</dt><dd>${esc(r.estado)}</dd>
+      ${r.estado==='Usada' ? `<dt>Nota</dt><dd>${esc(r.nota) || '—'}</dd>` : ''}
+    </dl>
+    <div class="actions">
+      ${otros>1 ? `<button class="btn ghost" id="dCliente">Ver todos del cliente</button>` : ''}
+      <button class="btn danger" id="dDel">Eliminar</button>
+      <button class="btn ghost" id="dClose">Cerrar</button>
+    </div>`;
+  $('detailBg').hidden = false;
+  $('dClose').onclick = closeDetail;
+  $('dDel').onclick = () => askCode(r);
+  if($('dCliente')) $('dCliente').onclick = () => { $('q').value = r.cedula; closeDetail(); render(); };
+}
+function closeDetail(){ $('detailBg').hidden = true; }
+$('detailBg').addEventListener('click', e => { if(e.target === $('detailBg')) closeDetail(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ $('codeBg').hidden = true; closeDetail(); } });
+
+// ---------- Eliminación con código secreto (lo verifica el servidor) ----------
+let pending = null;
+function askCode(r){ pending = r; $('codeInput').value=''; $('codeErr').textContent=''; $('codeBg').hidden = false; setTimeout(() => $('codeInput').focus(), 50); }
+async function confirmDelete(){
+  const btn = $('codeOk'); btn.disabled = true;
+  const { data, error } = await sb.rpc('borrar_registro', { p_id: pending.id, p_codigo: $('codeInput').value.trim() });
+  btn.disabled = false;
+  if(error){
+    $('codeErr').textContent = /incorrecto/i.test(error.message) ? 'Código incorrecto.' : 'No se pudo eliminar: ' + error.message;
+    $('codeInput').select(); return;
+  }
+  if(data) await sb.storage.from(BUCKET).remove([data]);
+  $('codeBg').hidden = true; closeDetail(); toast('Registro eliminado'); scheduleReload();
+}
+$('codeOk').onclick = confirmDelete;
+$('codeInput').addEventListener('keydown', e => { if(e.key==='Enter') confirmDelete(); });
+$('codeCancel').onclick = () => $('codeBg').hidden = true;
+
+// ---------- Respaldo ----------
+$('btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({app:'registro-joyeria', version:3, exportado:new Date().toISOString(), registros:all}, null, 1)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `respaldo-joyeria-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`Respaldo exportado (${all.length} registros, sin fotos)`);
+};
+$('btnImport').onclick = () => $('importFile').click();
+$('importFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const json = JSON.parse(await f.text());
+    const regs = Array.isArray(json) ? json : json.registros;
+    if(!Array.isArray(regs)) throw new Error('formato');
+    const seen = new Set(all.map(r => r.cedula + '|' + new Date(r.fecha).getTime()));
+    let n = 0, skipped = 0;
+    toast('Importando…');
+    for(const s of regs){
+      if(!s || !s.cedula) continue;
+      const fecha = s.fecha || new Date().toISOString();
+      if(seen.has(s.cedula + '|' + new Date(fecha).getTime())){ skipped++; continue; }
+      let foto_path = s.foto_path || null;
+      // Respaldos de la versión local traen la foto dentro del archivo
+      if(!foto_path && typeof s.foto === 'string' && s.foto.startsWith('data:image/')){
+        foto_path = await uploadPhoto(await (await fetch(s.foto)).blob());
+      }
+      const { error } = await sb.from('registros').insert({
+        fecha, foto_path,
+        nombres: s.nombres || '', apellidos: s.apellidos || '', cedula: String(s.cedula),
+        direccion: s.direccion || '', descripcion: s.descripcion || '',
+        peso: Number(s.peso)||0, precio_gr: Number(s.precio_gr ?? s.precioGr)||0,
+        estado: s.estado === 'Usada' ? 'Usada' : 'Nueva', nota: s.nota || ''
+      });
+      if(error) throw new Error(error.message);
+      n++;
+    }
+    toast(`${n} registro(s) importados` + (skipped ? ` · ${skipped} ya existían` : ''));
+    scheduleReload();
+  }catch(err){ toast('No se pudo importar: ' + (err.message === 'formato' ? 'el archivo no es un respaldo válido.' : err.message)); }
+  e.target.value='';
+});
+
+// ---------- Pestañas ----------
+function show(view){
+  $('viewNew').hidden = view!=='new';
+  $('viewList').hidden = view!=='list';
+  $('tabNew').setAttribute('aria-pressed', view==='new');
+  $('tabList').setAttribute('aria-pressed', view==='list');
+}
+$('tabNew').onclick = () => show('new');
+$('tabList').onclick = () => show('list');
+</script>
+</body>
+</html>
