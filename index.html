@@ -65,8 +65,18 @@
   input:focus,textarea:focus{outline:2px solid var(--gold);border-color:transparent}
   textarea{min-height:72px;resize:vertical}
   .sep{margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
-  .photo-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
-  .photo-prev{width:120px;height:120px;max-width:100%;border-radius:10px;border:1px dashed var(--line);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+  .photo-row{margin-bottom:14px}
+  .photos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;max-width:560px}
+  .slot{position:relative;aspect-ratio:1;max-width:100%;border-radius:10px;border:1px dashed var(--line);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+  .slot.filled{border-style:solid}
+  .slot .x{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(15,12,18,.75);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+  .slot .n{position:absolute;left:6px;bottom:4px;font-size:11px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+  .photo-btns .btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .thumbs button{width:56px;height:56px;border-radius:6px;border:2px solid transparent;background:var(--surface-2) center/cover no-repeat;cursor:pointer;padding:0}
+  .thumbs button[aria-current="true"]{border-color:var(--gold)}
+  .th{position:relative}
+  .th .cnt{position:absolute;right:3px;bottom:3px;background:rgba(15,12,18,.75);color:#fff;font-family:var(--body);font-size:11px;padding:0 5px;border-radius:999px}
   .radios{display:flex;gap:10px;flex-wrap:wrap}
   .radios label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:9px 16px;border-radius:8px;cursor:pointer;background:var(--surface-2)}
   .radios label:has(input:checked){border-color:var(--gold);color:var(--gold-strong);font-weight:600}
@@ -116,7 +126,7 @@
   .lockbox .err{color:#f0a090}
 
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom, 0px));background:var(--tray);color:var(--tray-ink);padding:10px 18px;border-radius:8px;z-index:40;max-width:calc(100% - 32px)}
-  @media (max-width:600px){.grid{grid-template-columns:1fr}.kv{grid-template-columns:110px minmax(0,1fr)}}
+  @media (max-width:600px){.grid{grid-template-columns:1fr}.photos{gap:6px}.kv{grid-template-columns:110px minmax(0,1fr)}}
   @media (prefers-reduced-motion:no-preference){.rec,.btn{transition:border-color .15s,background .15s}}
 </style>
 </head>
@@ -151,18 +161,15 @@
     <form id="form" class="panel" autocomplete="off">
       <h2>Datos del cliente</h2>
       <div class="photo-row">
-        <div class="photo-prev" id="photoPrev">Sin foto</div>
-        <div>
-          <span class="f">Foto (cliente o prenda)</span>
-          <div class="photo-btns">
-            <label class="btn ghost sm" for="photoCam">📷 Tomar foto</label>
-            <label class="btn ghost sm" for="photo">🖼️ Elegir de galería</label>
-            <button type="button" class="btn ghost sm" id="photoClear" hidden>Quitar</button>
-          </div>
-          <input type="file" id="photoCam" accept="image/*" capture="environment" hidden>
-          <input type="file" id="photo" accept="image/*" hidden>
-          <div class="hint" id="photoName">Sin foto seleccionada.</div>
+        <span class="f">Fotos (cliente o prenda) · hasta 5</span>
+        <div class="photo-btns">
+          <label class="btn ghost sm" for="photoCam" id="lblCam">📷 Tomar foto</label>
+          <label class="btn ghost sm" for="photo" id="lblGal">🖼️ Elegir de galería</label>
         </div>
+        <input type="file" id="photoCam" accept="image/*" capture="environment" hidden>
+        <input type="file" id="photo" accept="image/*" multiple hidden>
+        <div class="photos" id="photos"></div>
+        <div class="hint" id="photoName">Sin fotos. En la galería puedes elegir varias a la vez.</div>
       </div>
       <div class="grid">
         <div><label class="f" for="nombres">Nombres *</label><input type="text" id="nombres" required></div>
@@ -293,7 +300,7 @@ async function loadAll(){
     if(data.length < 1000) break;
   }
   all = rows;
-  const missing = all.map(r => r.foto_path).filter(p => p && !urls[p]);
+  const missing = all.flatMap(fotosDe).filter(p => !urls[p]);
   if(missing.length){
     const { data } = await sb.storage.from(BUCKET).createSignedUrls(missing, 60*60*12);
     (data || []).forEach(d => { if(d.signedUrl) urls[d.path] = d.signedUrl; });
@@ -301,8 +308,11 @@ async function loadAll(){
   render();
 }
 
-// ---------- Foto ----------
-let photoBlob = null, previewUrl = '';
+// ---------- Fotos (hasta 5 por registro) ----------
+const MAX_FOTOS = 5;
+let photos = [];   // [{blob, url}]
+// Registros viejos tienen foto_path (una); los nuevos, fotos (lista)
+const fotosDe = r => [...(r.foto_path ? [r.foto_path] : []), ...(r.fotos || [])];
 function resize(file, max=1200, q=.82){
   return new Promise((res, rej) => {
     const img = new Image();
@@ -319,23 +329,35 @@ function resize(file, max=1200, q=.82){
   });
 }
 async function onPhoto(e){
-  const f = e.target.files[0];
+  const files = [...e.target.files];
   e.target.value = '';
-  if(!f) return;
-  try{
-    photoBlob = await resize(f);
-    if(previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = URL.createObjectURL(photoBlob); setPrev(previewUrl);
-  }catch{ toast('No se pudo leer la imagen. Prueba con otra foto.'); }
+  const libres = MAX_FOTOS - photos.length;
+  if(files.length > libres) toast(`Solo se pueden ${MAX_FOTOS} fotos por registro. Se agregaron ${libres}.`);
+  for(const f of files.slice(0, libres)){
+    try{ const blob = await resize(f); photos.push({blob, url: URL.createObjectURL(blob)}); }
+    catch{ toast('No se pudo leer una imagen. Prueba con otra foto.'); }
+  }
+  renderPhotos();
 }
 $('photo').addEventListener('change', onPhoto);
 $('photoCam').addEventListener('change', onPhoto);
-$('photoClear').onclick = () => { photoBlob = null; setPrev(''); };
-function setPrev(src){
-  const p=$('photoPrev'); p.style.backgroundImage = src ? `url("${src}")` : ''; p.textContent = src ? '' : 'Sin foto';
-  $('photoClear').hidden = !src;
-  $('photoName').textContent = src ? 'Foto lista para guardar.' : 'Sin foto seleccionada.';
+$('photos').addEventListener('click', e => {
+  const b = e.target.closest('.x'); if(!b) return;
+  const [p] = photos.splice(+b.dataset.i, 1); URL.revokeObjectURL(p.url);
+  renderPhotos();
+});
+function clearPhotos(){ photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; renderPhotos(); }
+function renderPhotos(){
+  $('photos').innerHTML = Array.from({length: MAX_FOTOS}, (_, i) => photos[i]
+    ? `<div class="slot filled" style="background-image:url('${photos[i].url}')"><span class="n">${i+1}</span><button type="button" class="x" data-i="${i}" aria-label="Quitar foto ${i+1}">×</button></div>`
+    : `<div class="slot">${i+1}</div>`).join('');
+  const full = photos.length >= MAX_FOTOS;
+  ['lblCam','lblGal'].forEach(id => $(id).setAttribute('aria-disabled', full));
+  $('photoName').textContent = photos.length
+    ? `${photos.length} de ${MAX_FOTOS} fotos` + (full ? ' · límite alcanzado' : '')
+    : 'Sin fotos. En la galería puedes elegir varias a la vez.';
 }
+renderPhotos();
 async function uploadPhoto(blob){
   if(!blob) return null;
   const path = `${new Date().toISOString().slice(0,7)}/${crypto.randomUUID()}.jpg`;
@@ -350,15 +372,17 @@ function calcTotal(){ $('total').textContent = money((parseFloat($('peso').value
 $('peso').addEventListener('input', calcTotal);
 $('precioGr').addEventListener('input', calcTotal);
 document.querySelectorAll('input[name=estado]').forEach(r => r.addEventListener('change', () => { $('notaBox').hidden = estado() !== 'Usada'; }));
-$('form').addEventListener('reset', () => setTimeout(() => { photoBlob=null; setPrev(''); calcTotal(); $('notaBox').hidden = true; }));
+$('form').addEventListener('reset', () => setTimeout(() => { clearPhotos(); calcTotal(); $('notaBox').hidden = true; }));
 
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('btnSave'); btn.disabled = true; btn.textContent = 'Guardando…';
   try{
-    const foto_path = await uploadPhoto(photoBlob);
+    if(photos.length) btn.textContent = `Subiendo ${photos.length} foto(s)…`;
+    const fotos = await Promise.all(photos.map(p => uploadPhoto(p.blob)));
+    btn.textContent = 'Guardando…';
     const { error } = await sb.from('registros').insert({
-      foto_path,
+      fotos,
       nombres: $('nombres').value.trim(),
       apellidos: $('apellidos').value.trim(),
       cedula: $('cedula').value.trim(),
@@ -388,9 +412,9 @@ function render(){
   const clientes = new Set(items.map(r => r.cedula)).size;
   $('stats').textContent = `${items.length} registro(s) · ${clientes} cliente(s)` + (q ? ` · de ${all.length} en total` : '');
   $('list').innerHTML = items.length ? items.map(r => {
-    const src = urls[r.foto_path] || '';
+    const fs = fotosDe(r), src = urls[fs[0]] || '';
     return `<button class="rec" data-id="${esc(r.id)}">
-      <span class="th" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : esc((r.nombres||'?')[0])}</span>
+      <span class="th" style="${src ? `background-image:url('${esc(src)}')` : ''}">${src ? '' : esc((r.nombres||'?')[0])}${fs.length > 1 ? `<span class="cnt">${fs.length}</span>` : ''}</span>
       <span class="info">
         <span class="name">${esc(r.nombres)} ${esc(r.apellidos)}<span class="chip ${r.estado==='Usada'?'used':''}">${esc(r.estado)}</span></span>
         <span class="meta">C.I. ${esc(r.cedula)} · ${esc(r.descripcion)}</span>
@@ -407,9 +431,10 @@ $('list').addEventListener('click', e => { const el = e.target.closest('.rec'); 
 function showDetail(id){
   const r = all.find(x => x.id === id); if(!r) return;
   const otros = all.filter(x => x.cedula === r.cedula).length;
-  const src = urls[r.foto_path] || '';
+  const srcs = fotosDe(r).map(p => urls[p]).filter(Boolean);
   $('detail').innerHTML = `
-    ${src ? `<img src="${esc(src)}" alt="Foto del registro">` : ''}
+    ${srcs.length ? `<img id="dImg" src="${esc(srcs[0])}" alt="Foto 1 del registro">` : ''}
+    ${srcs.length > 1 ? `<div class="thumbs">${srcs.map((s, i) => `<button type="button" data-i="${i}" aria-label="Ver foto ${i+1}" aria-current="${i===0}" style="background-image:url('${esc(s)}')"></button>`).join('')}</div>` : ''}
     <h2 style="margin-top:14px">${esc(r.nombres)} ${esc(r.apellidos)}</h2>
     <dl class="kv">
       <dt>Cédula</dt><dd>${esc(r.cedula)} ${otros>1 ? `<span class="chip">${otros} registros</span>` : ''}</dd>
@@ -428,6 +453,10 @@ function showDetail(id){
       <button class="btn ghost" id="dClose">Cerrar</button>
     </div>`;
   $('detailBg').hidden = false;
+  $('detail').querySelectorAll('.thumbs button').forEach(b => b.onclick = () => {
+    $('dImg').src = srcs[b.dataset.i]; $('dImg').alt = `Foto ${+b.dataset.i + 1} del registro`;
+    $('detail').querySelectorAll('.thumbs button').forEach(x => x.setAttribute('aria-current', x === b));
+  });
   $('dClose').onclick = closeDetail;
   $('dDel').onclick = () => askCode(r);
   if($('dCliente')) $('dCliente').onclick = () => { $('q').value = r.cedula; closeDetail(); render(); };
@@ -447,7 +476,8 @@ async function confirmDelete(){
     $('codeErr').textContent = /incorrecto/i.test(error.message) ? 'Código incorrecto.' : 'No se pudo eliminar: ' + error.message;
     $('codeInput').select(); return;
   }
-  if(data) await sb.storage.from(BUCKET).remove([data]);
+  const paths = Array.isArray(data) ? data : (data ? [data] : []);
+  if(paths.length) await sb.storage.from(BUCKET).remove(paths);
   $('codeBg').hidden = true; closeDetail(); toast('Registro eliminado'); scheduleReload();
 }
 $('codeOk').onclick = confirmDelete;
@@ -478,13 +508,14 @@ $('importFile').addEventListener('change', async e => {
       if(!s || !s.cedula) continue;
       const fecha = s.fecha || new Date().toISOString();
       if(seen.has(s.cedula + '|' + new Date(fecha).getTime())){ skipped++; continue; }
-      let foto_path = s.foto_path || null;
+      const fotos = Array.isArray(s.fotos) ? s.fotos.slice(0, MAX_FOTOS) : [];
+      const foto_path = s.foto_path || null;
       // Respaldos de la versión local traen la foto dentro del archivo
       if(!foto_path && typeof s.foto === 'string' && s.foto.startsWith('data:image/')){
-        foto_path = await uploadPhoto(await (await fetch(s.foto)).blob());
+        fotos.unshift(await uploadPhoto(await (await fetch(s.foto)).blob()));
       }
       const { error } = await sb.from('registros').insert({
-        fecha, foto_path,
+        fecha, foto_path, fotos: fotos.slice(0, MAX_FOTOS),
         nombres: s.nombres || '', apellidos: s.apellidos || '', cedula: String(s.cedula),
         direccion: s.direccion || '', descripcion: s.descripcion || '',
         peso: Number(s.peso)||0, precio_gr: Number(s.precio_gr ?? s.precioGr)||0,
