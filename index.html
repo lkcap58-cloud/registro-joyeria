@@ -61,7 +61,7 @@
   .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
   .full{grid-column:1/-1}
   .f{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
-  input[type=text],input[type=number],input[type=password],textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+  input[type=text],input[type=tel],input[type=number],input[type=password],textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
   input:focus,textarea:focus{outline:2px solid var(--gold);border-color:transparent}
   textarea{min-height:72px;resize:vertical}
   .sep{margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
@@ -175,7 +175,8 @@
         <div><label class="f" for="nombres">Nombres *</label><input type="text" id="nombres" required></div>
         <div><label class="f" for="apellidos">Apellidos *</label><input type="text" id="apellidos" required></div>
         <div><label class="f" for="cedula">Número de cédula *</label><input type="text" id="cedula" inputmode="numeric" required></div>
-        <div><label class="f" for="direccion">Dirección corta</label><input type="text" id="direccion"></div>
+        <div><label class="f" for="telefono">Teléfono</label><input type="tel" id="telefono" inputmode="tel" autocomplete="off" placeholder="Ej: 0414-1234567"></div>
+        <div class="full"><label class="f" for="direccion">Dirección corta</label><input type="text" id="direccion"></div>
       </div>
 
       <div class="sep">
@@ -196,6 +197,21 @@
         </div>
       </div>
 
+      <div class="sep">
+        <h2>Entrega y vendedor</h2>
+        <div class="grid">
+          <div class="full">
+            <span class="f">Método de entrega *</span>
+            <div class="radios">
+              <label><input type="radio" name="entrega" id="entOficina" value="Oficina" checked> Oficina</label>
+              <label><input type="radio" name="entrega" id="entDelivery" value="Delivery"> Delivery</label>
+              <label><input type="radio" name="entrega" id="entEnvio" value="Envío"> Envío</label>
+            </div>
+          </div>
+          <div><label class="f" for="vendedor">Vendedor que carga el registro *</label><input type="text" id="vendedor" list="vendedores" required autocomplete="off" placeholder="Nombre del vendedor"><datalist id="vendedores"></datalist></div>
+        </div>
+      </div>
+
       <div class="actions">
         <button type="reset" class="btn ghost">Limpiar</button>
         <button type="submit" class="btn" id="btnSave">Guardar registro</button>
@@ -205,7 +221,7 @@
 
   <section id="viewList" hidden>
     <div class="tools">
-      <input type="text" id="q" placeholder="Buscar por nombre, apellido o cédula…" aria-label="Buscar">
+      <input type="text" id="q" placeholder="Buscar por nombre, cédula o teléfono…" aria-label="Buscar">
       <button class="btn ghost sm" id="btnExport">Exportar respaldo</button>
       <button class="btn ghost sm" id="btnImport">Importar respaldo</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -368,11 +384,22 @@ async function uploadPhoto(blob){
 
 // ---------- Formulario ----------
 const estado = () => document.querySelector('input[name=estado]:checked').value;
+const entrega = () => document.querySelector('input[name=entrega]:checked').value;
+// El vendedor se recuerda en este dispositivo para no escribirlo en cada registro
+const ls = {
+  get(k){ try{ return localStorage.getItem(k) || ''; }catch{ return ''; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch{} }
+};
+$('vendedor').value = ls.get('joy_vendedor');
+function fillVendedores(){
+  const names = [...new Set(all.map(r => (r.vendedor||'').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b,'es'));
+  $('vendedores').innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join('');
+}
 function calcTotal(){ $('total').textContent = money((parseFloat($('peso').value)||0) * (parseFloat($('precioGr').value)||0)); }
 $('peso').addEventListener('input', calcTotal);
 $('precioGr').addEventListener('input', calcTotal);
 document.querySelectorAll('input[name=estado]').forEach(r => r.addEventListener('change', () => { $('notaBox').hidden = estado() !== 'Usada'; }));
-$('form').addEventListener('reset', () => setTimeout(() => { clearPhotos(); calcTotal(); $('notaBox').hidden = true; }));
+$('form').addEventListener('reset', () => setTimeout(() => { clearPhotos(); calcTotal(); $('vendedor').value = ls.get('joy_vendedor'); $('notaBox').hidden = true; }));
 
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -391,9 +418,13 @@ $('form').addEventListener('submit', async e => {
       peso: parseFloat($('peso').value)||0,
       precio_gr: parseFloat($('precioGr').value)||0,
       estado: estado(),
-      nota: estado()==='Usada' ? $('nota').value.trim() : ''
+      nota: estado()==='Usada' ? $('nota').value.trim() : '',
+      telefono: $('telefono').value.trim(),
+      entrega: entrega(),
+      vendedor: $('vendedor').value.trim()
     });
     if(error) throw new Error(error.message);
+    ls.set('joy_vendedor', $('vendedor').value.trim());
     $('form').reset();
     toast('Registro guardado');
     scheduleReload();
@@ -403,12 +434,14 @@ $('form').addEventListener('submit', async e => {
 
 // ---------- Lista y búsqueda ----------
 function render(){
+  fillVendedores();
   const q = norm($('q').value.trim());
   const qDigits = q.replace(/[^0-9]/g,'');
   const items = !q ? all : all.filter(r =>
     norm(`${r.nombres} ${r.apellidos}`).includes(q) ||
     (qDigits && String(r.cedula).replace(/[^0-9]/g,'').includes(qDigits)) ||
-    norm(r.cedula).includes(q));
+    norm(r.cedula).includes(q) ||
+    (qDigits.length >= 4 && String(r.telefono||'').replace(/[^0-9]/g,'').includes(qDigits)));
   const clientes = new Set(items.map(r => r.cedula)).size;
   $('stats').textContent = `${items.length} registro(s) · ${clientes} cliente(s)` + (q ? ` · de ${all.length} en total` : '');
   $('list').innerHTML = items.length ? items.map(r => {
@@ -418,7 +451,7 @@ function render(){
       <span class="info">
         <span class="name">${esc(r.nombres)} ${esc(r.apellidos)}<span class="chip ${r.estado==='Usada'?'used':''}">${esc(r.estado)}</span></span>
         <span class="meta">C.I. ${esc(r.cedula)} · ${esc(r.descripcion)}</span>
-        <span class="meta">${fmtDate(r.fecha)} · ${money(r.peso)} gr × ${money(r.precio_gr)}</span>
+        <span class="meta">${fmtDate(r.fecha)} · ${money(r.peso)} gr × ${money(r.precio_gr)}${r.entrega ? ' · ' + esc(r.entrega) : ''}${r.vendedor ? ' · Vend.: ' + esc(r.vendedor) : ''}</span>
       </span>
       <span class="amt">${money(r.total)}</span>
     </button>`;
@@ -438,6 +471,7 @@ function showDetail(id){
     <h2 style="margin-top:14px">${esc(r.nombres)} ${esc(r.apellidos)}</h2>
     <dl class="kv">
       <dt>Cédula</dt><dd>${esc(r.cedula)} ${otros>1 ? `<span class="chip">${otros} registros</span>` : ''}</dd>
+      <dt>Teléfono</dt><dd>${esc(r.telefono) || '—'}</dd>
       <dt>Dirección</dt><dd>${esc(r.direccion) || '—'}</dd>
       <dt>Fecha</dt><dd>${fmtDate(r.fecha)}</dd>
       <dt>Prenda</dt><dd>${esc(r.descripcion)}</dd>
@@ -446,6 +480,8 @@ function showDetail(id){
       <dt>Total pagado</dt><dd class="total">${money(r.total)}</dd>
       <dt>Estado</dt><dd>${esc(r.estado)}</dd>
       ${r.estado==='Usada' ? `<dt>Nota</dt><dd>${esc(r.nota) || '—'}</dd>` : ''}
+      <dt>Entrega</dt><dd>${esc(r.entrega) || '—'}</dd>
+      <dt>Vendedor</dt><dd>${esc(r.vendedor) || '—'}</dd>
     </dl>
     <div class="actions">
       ${otros>1 ? `<button class="btn ghost" id="dCliente">Ver todos del cliente</button>` : ''}
@@ -519,7 +555,9 @@ $('importFile').addEventListener('change', async e => {
         nombres: s.nombres || '', apellidos: s.apellidos || '', cedula: String(s.cedula),
         direccion: s.direccion || '', descripcion: s.descripcion || '',
         peso: Number(s.peso)||0, precio_gr: Number(s.precio_gr ?? s.precioGr)||0,
-        estado: s.estado === 'Usada' ? 'Usada' : 'Nueva', nota: s.nota || ''
+        estado: s.estado === 'Usada' ? 'Usada' : 'Nueva', nota: s.nota || '',
+        telefono: s.telefono || '', vendedor: s.vendedor || '',
+        entrega: ['Oficina','Delivery','Envío'].includes(s.entrega) ? s.entrega : null
       });
       if(error) throw new Error(error.message);
       n++;
